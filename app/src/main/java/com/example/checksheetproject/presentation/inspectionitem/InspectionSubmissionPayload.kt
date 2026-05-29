@@ -8,6 +8,7 @@ data class InspectionSubmissionPayload(
     val inspectionMonth: String = "",
     val inspectorId: String = "",
     val createdAtMillis: Long,
+    val createdAtDateTime: String,
     val groups: List<InspectionSubmissionGroup>,
 )
 
