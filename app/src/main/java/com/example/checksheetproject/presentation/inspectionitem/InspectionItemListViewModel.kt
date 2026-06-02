@@ -1,6 +1,12 @@
 package com.example.checksheetproject.presentation.inspectionitem
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.checksheetproject.domain.model.InspectionSubmissionGroup
+import com.example.checksheetproject.domain.model.InspectionSubmissionItem
+import com.example.checksheetproject.domain.model.InspectionSubmissionPayload
+import com.example.checksheetproject.domain.model.InspectionSubmissionStatus
+import com.example.checksheetproject.domain.usecase.SaveInspectionSubmissionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -10,9 +16,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 @HiltViewModel
-class InspectionItemListViewModel @Inject constructor() : ViewModel() {
+class InspectionItemListViewModel @Inject constructor(
+    private val saveInspectionSubmissionUseCase: SaveInspectionSubmissionUseCase,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(
         InspectionItemListUiState(
             groups = inspectionGroups,
@@ -31,6 +40,8 @@ class InspectionItemListViewModel @Inject constructor() : ViewModel() {
                 itemStatuses = emptyMap(),
                 measurementValues = emptyMap(),
                 issueMemos = emptyMap(),
+                isSaving = false,
+                saveErrorMessage = null,
             )
         }
     }
@@ -107,6 +118,36 @@ class InspectionItemListViewModel @Inject constructor() : ViewModel() {
         )
     }
 
+    fun saveInspection(
+        chargerId: String,
+        inspectionMonth: String = currentInspectionMonth(),
+        inspectorId: String = "",
+        onSaved: () -> Unit,
+    ) {
+        val payload = createSubmissionPayload(
+            chargerId = chargerId,
+            inspectionMonth = inspectionMonth,
+            inspectorId = inspectorId,
+        )
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true, saveErrorMessage = null) }
+            runCatching {
+                saveInspectionSubmissionUseCase(payload)
+            }.onSuccess {
+                reset()
+                onSaved()
+            }.onFailure { throwable ->
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        saveErrorMessage = throwable.message ?: "점검 결과 저장에 실패했습니다.",
+                    )
+                }
+            }
+        }
+    }
+
     fun movePrevious() {
         _uiState.update { currentState ->
             val previousIndex = (currentState.currentGroupIndex - 1)
@@ -153,6 +194,11 @@ class InspectionItemListViewModel @Inject constructor() : ViewModel() {
         fun Long.toCreatedAtDateTime(): String {
             val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA)
             return formatter.format(Date(this))
+        }
+
+        fun currentInspectionMonth(): String {
+            val formatter = SimpleDateFormat("yyyy-MM", Locale.KOREA)
+            return formatter.format(Date())
         }
 
         val inspectionGroups = listOf(

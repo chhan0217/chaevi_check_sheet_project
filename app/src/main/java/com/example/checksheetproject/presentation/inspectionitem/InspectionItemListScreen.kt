@@ -1,7 +1,7 @@
 package com.example.checksheetproject.presentation.inspectionitem
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,18 +33,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.checksheetproject.presentation.common.CVLoadingView
 import com.example.checksheetproject.presentation.style.ColorStyles
 import com.example.checksheetproject.presentation.style.TextStyles
 import com.example.checksheetproject.presentation.theme.CheckSheetTheme
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-
-private const val InspectionSubmissionLogTag = "CheckSheetInspection"
-
-private val inspectionSubmissionJson = Json {
-    encodeDefaults = true
-}
 
 @Composable
 fun InspectionItemListRoute(
@@ -64,10 +57,10 @@ fun InspectionItemListRoute(
         onPreviousClick = viewModel::movePrevious,
         onNextClick = viewModel::moveNext,
         onSaveClick = {
-            val payload = viewModel.createSubmissionPayload(chargerId = chargerId)
-            Log.d(InspectionSubmissionLogTag, inspectionSubmissionJson.encodeToString(payload))
-            viewModel.reset()
-            onSaveClick()
+            viewModel.saveInspection(
+                chargerId = chargerId,
+                onSaved = onSaveClick,
+            )
         },
         onBackClick = onBackClick,
         modifier = modifier,
@@ -96,108 +89,120 @@ fun InspectionItemListScreen(
         }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = ColorStyles.white,
-        topBar = {
-            CenterAlignedTopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ColorStyles.white,
-                    titleContentColor = ColorStyles.black,
-                    navigationIconContentColor = ColorStyles.black,
-                ),
-                navigationIcon = {
-                    TextButton(onClick = onBackClick) {
-                        Text(text = "뒤로")
-                    }
-                },
-                title = {
-                    Text(text = uiState.title)
-                },
-            )
-        },
-        bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 12.dp, bottom = 16.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = ColorStyles.white,
+            topBar = {
+                CenterAlignedTopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = ColorStyles.white,
+                        titleContentColor = ColorStyles.black,
+                        navigationIconContentColor = ColorStyles.black,
+                    ),
+                    navigationIcon = {
+                        TextButton(onClick = onBackClick) {
+                            Text(text = "뒤로")
+                        }
+                    },
+                    title = {
+                        Text(text = uiState.title)
+                    },
+                )
+            },
+            bottomBar = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 12.dp, bottom = 16.dp),
                 ) {
-                    when {
-                        uiState.isFirstGroup -> {
-                            InspectionBottomButton(
-                                text = "다음",
-                                enabled = uiState.isCurrentGroupCompleted,
-                                onClick = onNextClickAndScrollTop,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        when {
+                            uiState.isFirstGroup -> {
+                                InspectionBottomButton(
+                                    text = "다음",
+                                    enabled = uiState.isCurrentGroupCompleted && !uiState.isSaving,
+                                    onClick = onNextClickAndScrollTop,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
 
-                        uiState.isLastGroup -> {
-                            InspectionBottomButton(
-                                text = "저장",
-                                enabled = uiState.isCurrentGroupCompleted,
-                                onClick = onSaveClick,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
+                            uiState.isLastGroup -> {
+                                InspectionBottomButton(
+                                    text = "저장",
+                                    enabled = uiState.isCurrentGroupCompleted && !uiState.isSaving,
+                                    onClick = onSaveClick,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
 
-                        else -> {
-                            InspectionBottomButton(
-                                text = "이전",
-                                enabled = true,
-                                onClick = onPreviousClick,
-                                modifier = Modifier.weight(1f),
-                            )
-                            InspectionBottomButton(
-                                text = "다음",
-                                enabled = uiState.isCurrentGroupCompleted,
-                                onClick = onNextClickAndScrollTop,
-                                modifier = Modifier.weight(1f),
-                            )
+                            else -> {
+                                InspectionBottomButton(
+                                    text = "이전",
+                                    enabled = !uiState.isSaving,
+                                    onClick = onPreviousClick,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                InspectionBottomButton(
+                                    text = "다음",
+                                    enabled = uiState.isCurrentGroupCompleted && !uiState.isSaving,
+                                    onClick = onNextClickAndScrollTop,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
                         }
                     }
                 }
-            }
-        },
-    ) { innerPadding ->
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                uiState.currentGroup?.let { group ->
-                    InspectionGroupHeader(
-                        group = group,
-                        currentIndex = uiState.currentGroupIndex,
-                        totalCount = uiState.groups.size,
-                    )
+            },
+        ) { innerPadding ->
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item {
+                    uiState.currentGroup?.let { group ->
+                        InspectionGroupHeader(
+                            group = group,
+                            currentIndex = uiState.currentGroupIndex,
+                            totalCount = uiState.groups.size,
+                        )
+                    }
                 }
-            }
-            uiState.currentGroup?.let { group ->
-                items(group.items, key = { it }) { item ->
-                    InspectionItemCard(
-                        item = item,
-                        selectedStatus = uiState.itemStatuses[item],
-                        measurementValue = uiState.measurementValues[item].orEmpty(),
-                        issueMemo = uiState.issueMemos[item].orEmpty(),
-                        requiresMeasurementInput = group.requiresMeasurementInput,
-                        onStatusClick = { status -> onStatusClick(item, status) },
-                        onMeasurementChange = { value -> onMeasurementChange(item, value) },
-                        onIssueMemoChange = { memo -> onIssueMemoChange(item, memo) },
-                    )
+                uiState.saveErrorMessage?.let { message ->
+                    item {
+                        Text(
+                            text = message,
+                            style = TextStyles.body03.medium,
+                            color = ColorStyles.error,
+                        )
+                    }
+                }
+                uiState.currentGroup?.let { group ->
+                    items(group.items, key = { it }) { item ->
+                        InspectionItemCard(
+                            item = item,
+                            selectedStatus = uiState.itemStatuses[item],
+                            measurementValue = uiState.measurementValues[item].orEmpty(),
+                            issueMemo = uiState.issueMemos[item].orEmpty(),
+                            requiresMeasurementInput = group.requiresMeasurementInput,
+                            onStatusClick = { status -> onStatusClick(item, status) },
+                            onMeasurementChange = { value -> onMeasurementChange(item, value) },
+                            onIssueMemoChange = { memo -> onIssueMemoChange(item, memo) },
+                        )
+                    }
                 }
             }
         }
+        CVLoadingView(isLoading = uiState.isSaving)
     }
 }
 

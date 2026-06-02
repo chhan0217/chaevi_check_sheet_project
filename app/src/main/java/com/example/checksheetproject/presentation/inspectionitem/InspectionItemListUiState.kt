@@ -9,6 +9,8 @@ data class InspectionItemListUiState(
     val itemStatuses: Map<String, InspectionCheckStatus> = emptyMap(),
     val measurementValues: Map<String, String> = emptyMap(),
     val issueMemos: Map<String, String> = emptyMap(),
+    val isSaving: Boolean = false,
+    val saveErrorMessage: String? = null,
 )
 
 val InspectionItemListUiState.currentGroup: InspectionItemGroupUi?

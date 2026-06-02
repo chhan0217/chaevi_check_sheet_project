@@ -1,36 +1,36 @@
-package com.example.checksheetproject.presentation.inspectionitem
+package com.example.checksheetproject.data.remote.dto
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class InspectionSubmissionPayload(
+data class InspectionSubmissionRequest(
     val chargerId: String = "",
     val inspectionMonth: String = "",
     val inspectorId: String = "",
     val createdAtMillis: Long,
     val createdAtDateTime: String,
-    val groups: List<InspectionSubmissionGroup>,
+    val groups: List<InspectionSubmissionGroupRequest>,
 )
 
 @Serializable
-data class InspectionSubmissionGroup(
+data class InspectionSubmissionGroupRequest(
     val category: String,
     val title: String,
-    val items: List<InspectionSubmissionItem>,
+    val items: List<InspectionSubmissionItemRequest>,
 )
 
 @Serializable
-data class InspectionSubmissionItem(
+data class InspectionSubmissionItemRequest(
     val itemId: String,
     val title: String,
     val rawText: String,
-    val status: InspectionSubmissionStatus,
+    val status: InspectionSubmissionStatusRequest,
     val measurementValue: String? = null,
     val issueMemo: String? = null,
 )
 
 @Serializable
-enum class InspectionSubmissionStatus {
+enum class InspectionSubmissionStatusRequest {
     NORMAL,
     ISSUE,
     NOT_APPLICABLE,

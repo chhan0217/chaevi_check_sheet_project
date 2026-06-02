@@ -1,5 +1,9 @@
 package com.example.checksheetproject.presentation.inspectionitem
 
+import com.example.checksheetproject.domain.model.InspectionSubmissionPayload
+import com.example.checksheetproject.domain.model.InspectionSubmissionStatus
+import com.example.checksheetproject.domain.repository.InspectionRepository
+import com.example.checksheetproject.domain.usecase.SaveInspectionSubmissionUseCase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -8,7 +12,7 @@ import org.junit.Test
 class InspectionItemListViewModelTest {
     @Test
     fun `첫 점검 그룹은 외관점검 및 청소의 충전기 5개 항목이다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
 
         val uiState = viewModel.uiState.value
 
@@ -23,7 +27,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `다음을 누르면 다음 점검 그룹으로 이동한다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
 
         viewModel.moveNext()
 
@@ -35,7 +39,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `이전을 누르면 이전 점검 그룹으로 이동한다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
 
         viewModel.moveNext()
         viewModel.movePrevious()
@@ -48,7 +52,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `마지막 점검 그룹에서는 다음으로 이동할 수 없다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
 
         repeat(20) {
             viewModel.moveNext()
@@ -62,7 +66,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `초기화하면 첫 점검 그룹으로 돌아간다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
 
         viewModel.moveNext()
         viewModel.moveNext()
@@ -83,7 +87,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `점검 항목 상태와 항목별 이상 사항 메모를 업데이트한다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
         val item = viewModel.uiState.value.currentGroup?.items?.first().orEmpty()
 
         viewModel.updateItemStatus(item, InspectionCheckStatus.Issue)
@@ -96,7 +100,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `이상 상태를 해제하면 항목별 이상 사항 메모를 제거한다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
         val item = viewModel.uiState.value.currentGroup?.items?.first().orEmpty()
 
         viewModel.updateItemStatus(item, InspectionCheckStatus.Issue)
@@ -110,7 +114,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `현재 그룹의 모든 항목을 선택하면 그룹 완료 상태가 된다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
         val items = viewModel.uiState.value.currentGroup?.items.orEmpty()
 
         items.forEach { item ->
@@ -122,7 +126,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `성능 및 저항 확인 그룹은 측정값을 모두 입력하면 완료 상태가 된다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
         repeat(8) {
             viewModel.moveNext()
         }
@@ -139,7 +143,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `항목별 이상 사항 메모는 그룹 완료 조건에 포함하지 않는다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
         val items = viewModel.uiState.value.currentGroup?.items.orEmpty()
 
         items.forEach { item ->
@@ -153,7 +157,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `서버 전송 payload는 전체 점검 그룹과 항목을 포함한다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
 
         val payload = viewModel.createSubmissionPayload(
             chargerId = "CHARGER-001",
@@ -186,7 +190,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `서버 전송 payload는 선택 상태와 항목별 메모를 반영한다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
         val firstGroupItems = viewModel.uiState.value.currentGroup?.items.orEmpty()
 
         viewModel.updateItemStatus(firstGroupItems[0], InspectionCheckStatus.Normal)
@@ -207,7 +211,7 @@ class InspectionItemListViewModelTest {
 
     @Test
     fun `서버 전송 payload는 성능 및 저항 확인 측정값을 반영한다`() {
-        val viewModel = InspectionItemListViewModel()
+        val viewModel = createViewModel()
         repeat(8) {
             viewModel.moveNext()
         }
@@ -220,5 +224,17 @@ class InspectionItemListViewModelTest {
 
         assertEquals("220.5", measurementGroupPayload.items.first().measurementValue)
         assertEquals(InspectionSubmissionStatus.NOT_SELECTED, measurementGroupPayload.items.first().status)
+    }
+
+    private fun createViewModel(
+        inspectionRepository: InspectionRepository = FakeInspectionRepository(),
+    ): InspectionItemListViewModel {
+        return InspectionItemListViewModel(
+            saveInspectionSubmissionUseCase = SaveInspectionSubmissionUseCase(inspectionRepository),
+        )
+    }
+
+    private class FakeInspectionRepository : InspectionRepository {
+        override suspend fun saveInspection(payload: InspectionSubmissionPayload) = Unit
     }
 }
