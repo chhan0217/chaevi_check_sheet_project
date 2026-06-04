@@ -1,15 +1,41 @@
 package com.example.checksheetproject.presentation.inspectionitem
 
 import com.example.checksheetproject.domain.model.InspectionSubmissionPayload
+import com.example.checksheetproject.domain.model.InspectionSubmissionGroup
+import com.example.checksheetproject.domain.model.InspectionSubmissionItem
 import com.example.checksheetproject.domain.model.InspectionSubmissionStatus
+import com.example.checksheetproject.domain.repository.InspectionDraftRepository
 import com.example.checksheetproject.domain.repository.InspectionRepository
+import com.example.checksheetproject.domain.usecase.DeleteInspectionDraftUseCase
+import com.example.checksheetproject.domain.usecase.GetInspectionDraftUseCase
+import com.example.checksheetproject.domain.usecase.SaveInspectionDraftUseCase
 import com.example.checksheetproject.domain.usecase.SaveInspectionSubmissionUseCase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class InspectionItemListViewModelTest {
+    private val testDispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
     @Test
     fun `첫 점검 그룹은 외관점검 및 청소의 충전기 5개 항목이다`() {
         val viewModel = createViewModel()
@@ -226,15 +252,136 @@ class InspectionItemListViewModelTest {
         assertEquals(InspectionSubmissionStatus.NOT_SELECTED, measurementGroupPayload.items.first().status)
     }
 
+    @Test
+    fun `작성 중인 점검 항목이 있으면 화면 이탈 전에 임시저장한다`() {
+        val draftRepository = FakeInspectionDraftRepository()
+        val viewModel = createViewModel(inspectionDraftRepository = draftRepository)
+        val firstItem = viewModel.uiState.value.currentGroup?.items?.first().orEmpty()
+        var didLeave = false
+
+        viewModel.updateItemStatus(firstItem, InspectionCheckStatus.Issue)
+        viewModel.updateIssueMemo(firstItem, "외부 스크래치 확인")
+        viewModel.saveDraftBeforeLeaving(
+            chargerId = "CHB-001",
+            inspectionMonth = "2026-05",
+            onSaved = { didLeave = true },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val savedPayload = draftRepository.savedPayload
+        assertEquals(true, didLeave)
+        assertEquals("CHB-001", savedPayload?.chargerId)
+        assertEquals("2026-05", savedPayload?.inspectionMonth)
+        assertEquals(
+            InspectionSubmissionStatus.ISSUE,
+            savedPayload?.groups?.first()?.items?.first()?.status,
+        )
+        assertEquals(
+            "외부 스크래치 확인",
+            savedPayload?.groups?.first()?.items?.first()?.issueMemo,
+        )
+    }
+
+    @Test
+    fun `기기번호와 점검월이 같은 임시저장 데이터가 있으면 점검 상태를 복원한다`() {
+        val firstItem = "1-1 녹, 방청, 도색상태, 외부스크래치 점검"
+        val measurementItem = "가. 충전기 입력전압 측정"
+        val draftRepository = FakeInspectionDraftRepository(
+            draftPayload = InspectionSubmissionPayload(
+                chargerId = "CHB-001",
+                inspectionMonth = "2026-05",
+                inspectorId = "",
+                createdAtMillis = 1000L,
+                createdAtDateTime = "2026-05-01 10:00:00",
+                groups = listOf(
+                    InspectionSubmissionGroup(
+                        category = "외관점검 및 청소",
+                        title = "1. 충전기",
+                        items = listOf(
+                            InspectionSubmissionItem(
+                                itemId = "1-1",
+                                title = "녹, 방청, 도색상태, 외부스크래치 점검",
+                                rawText = firstItem,
+                                status = InspectionSubmissionStatus.ISSUE,
+                                issueMemo = "외부 스크래치 확인",
+                            ),
+                        ),
+                    ),
+                    InspectionSubmissionGroup(
+                        category = "성능 및 저항 확인",
+                        title = "전기 성능 측정",
+                        items = listOf(
+                            InspectionSubmissionItem(
+                                itemId = "가.",
+                                title = "충전기 입력전압 측정",
+                                rawText = measurementItem,
+                                status = InspectionSubmissionStatus.NOT_SELECTED,
+                                measurementValue = "220.5",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val viewModel = createViewModel(inspectionDraftRepository = draftRepository)
+
+        viewModel.loadDraft(
+            chargerId = "CHB-001",
+            inspectionMonth = "2026-05",
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val uiState = viewModel.uiState.value
+        assertEquals(InspectionCheckStatus.Issue, uiState.itemStatuses[firstItem])
+        assertEquals("외부 스크래치 확인", uiState.issueMemos[firstItem])
+        assertEquals("220.5", uiState.measurementValues[measurementItem])
+    }
+
     private fun createViewModel(
         inspectionRepository: InspectionRepository = FakeInspectionRepository(),
+        inspectionDraftRepository: InspectionDraftRepository = FakeInspectionDraftRepository(),
     ): InspectionItemListViewModel {
         return InspectionItemListViewModel(
             saveInspectionSubmissionUseCase = SaveInspectionSubmissionUseCase(inspectionRepository),
+            saveInspectionDraftUseCase = SaveInspectionDraftUseCase(inspectionDraftRepository),
+            deleteInspectionDraftUseCase = DeleteInspectionDraftUseCase(inspectionDraftRepository),
+            getInspectionDraftUseCase = GetInspectionDraftUseCase(inspectionDraftRepository),
         )
     }
 
     private class FakeInspectionRepository : InspectionRepository {
         override suspend fun saveInspection(payload: InspectionSubmissionPayload) = Unit
+    }
+
+    private class FakeInspectionDraftRepository(
+        private val draftPayload: InspectionSubmissionPayload? = null,
+    ) : InspectionDraftRepository {
+        var savedPayload: InspectionSubmissionPayload? = null
+            private set
+
+        var deletedDraftKey: Pair<String, String>? = null
+            private set
+
+        override suspend fun getDraft(
+            chargerId: String,
+            inspectionMonth: String,
+        ): InspectionSubmissionPayload? {
+            return draftPayload?.takeIf {
+                it.chargerId == chargerId && it.inspectionMonth == inspectionMonth
+            }
+        }
+
+        override suspend fun saveDraft(payload: InspectionSubmissionPayload) {
+            savedPayload = payload
+        }
+
+        override suspend fun deleteDraft(
+            chargerId: String,
+            inspectionMonth: String,
+        ) {
+            deletedDraftKey = chargerId to inspectionMonth
+        }
+
+        override suspend fun deleteExpiredDrafts(nowMillis: Long) = Unit
     }
 }

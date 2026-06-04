@@ -1,8 +1,11 @@
 package com.example.checksheetproject.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.example.checksheetproject.presentation.charger.ChargerListRoute
@@ -15,6 +18,7 @@ import com.example.checksheetproject.presentation.main.MainRoute
 @Composable
 fun CheckSheetNavGraph() {
     val backStack = remember { mutableStateListOf<AppRoute>(AppRoute.Main) }
+    var inspectionChargerEntryResetSignal by remember { mutableIntStateOf(0) }
 
     NavDisplay(
         backStack = backStack,
@@ -58,6 +62,7 @@ fun CheckSheetNavGraph() {
 
                 AppRoute.InspectionChargerEntry -> NavEntry(route) {
                     InspectionChargerEntryRoute(
+                        resetSignal = inspectionChargerEntryResetSignal,
                         onBackClick = { backStack.removeLastOrNull() },
                         onConfirmedClick = { chargerId ->
                             backStack.add(AppRoute.InspectionItemList(chargerId = chargerId))
@@ -68,7 +73,10 @@ fun CheckSheetNavGraph() {
                 is AppRoute.InspectionItemList -> NavEntry(route) {
                     InspectionItemListRoute(
                         chargerId = route.chargerId,
-                        onBackClick = { backStack.removeLastOrNull() },
+                        onBackClick = {
+                            inspectionChargerEntryResetSignal += 1
+                            backStack.removeLastOrNull()
+                        },
                         onSaveClick = {
                             backStack.clear()
                             backStack.add(AppRoute.Main)

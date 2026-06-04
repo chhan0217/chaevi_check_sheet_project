@@ -2,7 +2,15 @@ package com.example.checksheetproject.presentation.inspectionitem
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.checksheetproject.domain.model.Charger
+import com.example.checksheetproject.domain.model.InspectionSubmissionPayload
+import com.example.checksheetproject.domain.usecase.GetChargerUseCase
+import com.example.checksheetproject.domain.usecase.GetInspectionDraftUseCase
+import com.example.checksheetproject.domain.usecase.DeleteInspectionDraftUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,16 +19,25 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class InspectionChargerEntryViewModel @Inject constructor() : ViewModel() {
+class InspectionChargerEntryViewModel @Inject constructor(
+    private val getInspectionDraftUseCase: GetInspectionDraftUseCase,
+    private val getChargerUseCase: GetChargerUseCase,
+    private val deleteInspectionDraftUseCase: DeleteInspectionDraftUseCase,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(InspectionChargerEntryUiState())
 
     val uiState: StateFlow<InspectionChargerEntryUiState> = _uiState.asStateFlow()
+
+    fun reset() {
+        _uiState.value = InspectionChargerEntryUiState()
+    }
 
     fun updateChargerIdInput(chargerId: String) {
         _uiState.update { currentState ->
             currentState.copy(
                 chargerIdInput = chargerId,
                 chargerInfo = null,
+                showDraftLoadDialog = false,
                 errorMessage = null,
             )
         }
@@ -47,22 +64,124 @@ class InspectionChargerEntryViewModel @Inject constructor() : ViewModel() {
         }
 
         viewModelScope.launch {
-            val chargerInfo = loadChargerInfo(chargerId)
-            _uiState.update { currentState ->
-                currentState.copy(
-                    isChecking = false,
-                    chargerInfo = chargerInfo,
-                    errorMessage = null,
-                )
+            runCatching {
+                loadChargerInfo(chargerId)
+            }.onSuccess { chargerInfo ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isChecking = false,
+                        chargerInfo = chargerInfo,
+                        errorMessage = null,
+                    )
+                }
+            }.onFailure { throwable ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isChecking = false,
+                        chargerInfo = null,
+                        errorMessage = throwable.message ?: "충전기 정보를 확인하지 못했습니다.",
+                    )
+                }
             }
         }
     }
 
-    private fun loadChargerInfo(chargerId: String): InspectionChargerInfoUi {
+    fun requestStartInspection(
+        onStartInspection: (String) -> Unit,
+    ) {
+        val chargerInfo = _uiState.value.chargerInfo ?: return
+        if (chargerInfo.hasDraft) {
+            _uiState.update { currentState ->
+                currentState.copy(showDraftLoadDialog = true)
+            }
+        } else {
+            onStartInspection(chargerInfo.id)
+        }
+    }
+
+    fun dismissDraftLoadDialog() {
+        _uiState.update { currentState ->
+            currentState.copy(showDraftLoadDialog = false)
+        }
+    }
+
+    fun startInspectionWithDraft(
+        onStartInspection: (String) -> Unit,
+    ) {
+        val chargerId = _uiState.value.chargerInfo?.id ?: return
+        _uiState.update { currentState ->
+            currentState.copy(showDraftLoadDialog = false)
+        }
+        onStartInspection(chargerId)
+    }
+
+    fun startInspectionWithoutDraft(
+        onStartInspection: (String) -> Unit,
+    ) {
+        val chargerId = _uiState.value.chargerInfo?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { currentState ->
+                currentState.copy(
+                    isStartingInspection = true,
+                    showDraftLoadDialog = false,
+                    errorMessage = null,
+                )
+            }
+            runCatching {
+                deleteInspectionDraftUseCase(
+                    chargerId = chargerId,
+                    inspectionMonth = currentInspectionMonth(),
+                )
+            }.onSuccess {
+                _uiState.update { currentState ->
+                    currentState.copy(isStartingInspection = false)
+                }
+                onStartInspection(chargerId)
+            }.onFailure { throwable ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isStartingInspection = false,
+                        errorMessage = throwable.message ?: "임시저장 데이터를 삭제하지 못했습니다.",
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun loadChargerInfo(chargerId: String): InspectionChargerInfoUi {
+        val draft = getInspectionDraftUseCase(
+            chargerId = chargerId,
+            inspectionMonth = currentInspectionMonth(),
+        )
+        if (draft != null) {
+            return draft.toChargerInfoUi()
+        }
+
+        val charger = getChargerUseCase(chargerId)
+            ?: error("충전기 정보를 찾을 수 없습니다.")
+
+        return charger.toChargerInfoUi()
+    }
+
+    private fun InspectionSubmissionPayload.toChargerInfoUi(): InspectionChargerInfoUi {
         return InspectionChargerInfoUi(
             id = chargerId,
             name = "충전기 $chargerId",
-            location = "확인된 위치 정보",
+            location = "임시저장된 점검 데이터",
+            hasDraft = true,
         )
+    }
+
+    private fun Charger.toChargerInfoUi(): InspectionChargerInfoUi {
+        return InspectionChargerInfoUi(
+            id = id,
+            name = name,
+            location = location,
+        )
+    }
+
+    private fun currentInspectionMonth(): String {
+        val formatter = SimpleDateFormat("yyyy-MM", Locale.KOREA)
+        return formatter.format(Date())
     }
 }

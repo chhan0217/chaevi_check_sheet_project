@@ -6,6 +6,9 @@ import com.example.checksheetproject.domain.model.InspectionSubmissionGroup
 import com.example.checksheetproject.domain.model.InspectionSubmissionItem
 import com.example.checksheetproject.domain.model.InspectionSubmissionPayload
 import com.example.checksheetproject.domain.model.InspectionSubmissionStatus
+import com.example.checksheetproject.domain.usecase.DeleteInspectionDraftUseCase
+import com.example.checksheetproject.domain.usecase.GetInspectionDraftUseCase
+import com.example.checksheetproject.domain.usecase.SaveInspectionDraftUseCase
 import com.example.checksheetproject.domain.usecase.SaveInspectionSubmissionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.SimpleDateFormat
@@ -21,6 +24,9 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class InspectionItemListViewModel @Inject constructor(
     private val saveInspectionSubmissionUseCase: SaveInspectionSubmissionUseCase,
+    private val saveInspectionDraftUseCase: SaveInspectionDraftUseCase,
+    private val deleteInspectionDraftUseCase: DeleteInspectionDraftUseCase,
+    private val getInspectionDraftUseCase: GetInspectionDraftUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         InspectionItemListUiState(
@@ -30,6 +36,32 @@ class InspectionItemListViewModel @Inject constructor(
     )
 
     val uiState: StateFlow<InspectionItemListUiState> = _uiState.asStateFlow()
+
+    private var shouldSkipDraftOnDispose = false
+
+    fun loadDraft(
+        chargerId: String,
+        inspectionMonth: String = currentInspectionMonth(),
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                getInspectionDraftUseCase(
+                    chargerId = chargerId,
+                    inspectionMonth = inspectionMonth,
+                )
+            }.onSuccess { draft ->
+                if (draft != null) {
+                    applyDraft(draft)
+                }
+            }.onFailure { throwable ->
+                _uiState.update {
+                    it.copy(
+                        saveErrorMessage = throwable.message ?: "임시저장 내용을 불러오지 못했습니다.",
+                    )
+                }
+            }
+        }
+    }
 
     fun reset() {
         _uiState.update { currentState ->
@@ -135,6 +167,13 @@ class InspectionItemListViewModel @Inject constructor(
             runCatching {
                 saveInspectionSubmissionUseCase(payload)
             }.onSuccess {
+                shouldSkipDraftOnDispose = true
+                runCatching {
+                    deleteInspectionDraftUseCase(
+                        chargerId = chargerId,
+                        inspectionMonth = inspectionMonth,
+                    )
+                }
                 reset()
                 onSaved()
             }.onFailure { throwable ->
@@ -144,6 +183,63 @@ class InspectionItemListViewModel @Inject constructor(
                         saveErrorMessage = throwable.message ?: "점검 결과 저장에 실패했습니다.",
                     )
                 }
+            }
+        }
+    }
+
+    fun saveDraftBeforeLeaving(
+        chargerId: String,
+        inspectionMonth: String = currentInspectionMonth(),
+        inspectorId: String = "",
+        onSaved: () -> Unit,
+    ) {
+        if (!hasDraftContent()) {
+            shouldSkipDraftOnDispose = true
+            onSaved()
+            return
+        }
+
+        val payload = createSubmissionPayload(
+            chargerId = chargerId,
+            inspectionMonth = inspectionMonth,
+            inspectorId = inspectorId,
+        )
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true, saveErrorMessage = null) }
+            runCatching {
+                saveInspectionDraftUseCase(payload)
+            }.onSuccess {
+                shouldSkipDraftOnDispose = true
+                _uiState.update { it.copy(isSaving = false) }
+                onSaved()
+            }.onFailure { throwable ->
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        saveErrorMessage = throwable.message ?: "작성 중인 점검 내용을 임시저장하지 못했습니다.",
+                    )
+                }
+            }
+        }
+    }
+
+    fun saveDraftOnDispose(
+        chargerId: String,
+        inspectionMonth: String = currentInspectionMonth(),
+        inspectorId: String = "",
+    ) {
+        if (shouldSkipDraftOnDispose || !hasDraftContent()) return
+
+        val payload = createSubmissionPayload(
+            chargerId = chargerId,
+            inspectionMonth = inspectionMonth,
+            inspectorId = inspectorId,
+        )
+
+        viewModelScope.launch {
+            runCatching {
+                saveInspectionDraftUseCase(payload)
             }
         }
     }
@@ -297,5 +393,50 @@ class InspectionItemListViewModel @Inject constructor(
                 ),
             ),
         )
+    }
+
+    private fun hasDraftContent(): Boolean {
+        val currentState = _uiState.value
+        return currentState.itemStatuses.isNotEmpty() ||
+            currentState.measurementValues.any { it.value.isNotBlank() } ||
+            currentState.issueMemos.any { it.value.isNotBlank() }
+    }
+
+    private fun applyDraft(draft: InspectionSubmissionPayload) {
+        val draftItems = draft.groups
+            .flatMap { it.items }
+            .associateBy { it.rawText }
+
+        _uiState.update { currentState ->
+            val itemStatuses = draftItems.mapNotNull { (rawText, item) ->
+                item.status.toCheckStatus()?.let { rawText to it }
+            }.toMap()
+            val measurementValues = draftItems.mapNotNull { (rawText, item) ->
+                item.measurementValue
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { rawText to it }
+            }.toMap()
+            val issueMemos = draftItems.mapNotNull { (rawText, item) ->
+                item.issueMemo
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { rawText to it }
+            }.toMap()
+
+            currentState.copy(
+                itemStatuses = itemStatuses,
+                measurementValues = measurementValues,
+                issueMemos = issueMemos,
+                saveErrorMessage = null,
+            )
+        }
+    }
+
+    private fun InspectionSubmissionStatus.toCheckStatus(): InspectionCheckStatus? {
+        return when (this) {
+            InspectionSubmissionStatus.NORMAL -> InspectionCheckStatus.Normal
+            InspectionSubmissionStatus.ISSUE -> InspectionCheckStatus.Issue
+            InspectionSubmissionStatus.NOT_APPLICABLE -> InspectionCheckStatus.NotApplicable
+            InspectionSubmissionStatus.NOT_SELECTED -> null
+        }
     }
 }

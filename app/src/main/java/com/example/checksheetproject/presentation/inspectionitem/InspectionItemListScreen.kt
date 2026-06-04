@@ -1,5 +1,6 @@
 package com.example.checksheetproject.presentation.inspectionitem
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -49,6 +52,23 @@ fun InspectionItemListRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(chargerId) {
+        viewModel.loadDraft(chargerId = chargerId)
+    }
+
+    DisposableEffect(chargerId) {
+        onDispose {
+            viewModel.saveDraftOnDispose(chargerId = chargerId)
+        }
+    }
+
+    BackHandler(enabled = !uiState.isSaving) {
+        viewModel.saveDraftBeforeLeaving(
+            chargerId = chargerId,
+            onSaved = onBackClick,
+        )
+    }
+
     InspectionItemListScreen(
         uiState = uiState,
         onStatusClick = viewModel::updateItemStatus,
@@ -62,7 +82,12 @@ fun InspectionItemListRoute(
                 onSaved = onSaveClick,
             )
         },
-        onBackClick = onBackClick,
+        onBackClick = {
+            viewModel.saveDraftBeforeLeaving(
+                chargerId = chargerId,
+                onSaved = onBackClick,
+            )
+        },
         modifier = modifier,
     )
 }

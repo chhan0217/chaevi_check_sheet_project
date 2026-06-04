@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -20,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +36,7 @@ import com.example.checksheetproject.presentation.theme.CheckSheetTheme
 
 @Composable
 fun InspectionChargerEntryRoute(
+    resetSignal: Int,
     onBackClick: () -> Unit,
     onConfirmedClick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -41,12 +44,27 @@ fun InspectionChargerEntryRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(resetSignal) {
+        if (resetSignal > 0) {
+            viewModel.reset()
+        }
+    }
+
     InspectionChargerEntryScreen(
         uiState = uiState,
         onChargerIdChange = viewModel::updateChargerIdInput,
         onCheckClick = viewModel::checkChargerInfo,
         onBackClick = onBackClick,
-        onConfirmedClick = onConfirmedClick,
+        onStartClick = {
+            viewModel.requestStartInspection(onStartInspection = onConfirmedClick)
+        },
+        onLoadDraftClick = {
+            viewModel.startInspectionWithDraft(onStartInspection = onConfirmedClick)
+        },
+        onStartNewClick = {
+            viewModel.startInspectionWithoutDraft(onStartInspection = onConfirmedClick)
+        },
+        onDismissDraftDialog = viewModel::dismissDraftLoadDialog,
         modifier = modifier,
     )
 }
@@ -58,9 +76,34 @@ fun InspectionChargerEntryScreen(
     onChargerIdChange: (String) -> Unit,
     onCheckClick: () -> Unit,
     onBackClick: () -> Unit,
-    onConfirmedClick: (String) -> Unit,
+    onStartClick: () -> Unit,
+    onLoadDraftClick: () -> Unit,
+    onStartNewClick: () -> Unit,
+    onDismissDraftDialog: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (uiState.showDraftLoadDialog) {
+        AlertDialog(
+            onDismissRequest = onDismissDraftDialog,
+            title = {
+                Text(text = "임시저장 데이터")
+            },
+            text = {
+                Text(text = "임시저장 데이터를 불러올까요?")
+            },
+            confirmButton = {
+                TextButton(onClick = onLoadDraftClick) {
+                    Text(text = "확인")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onStartNewClick) {
+                    Text(text = "아니오")
+                }
+            },
+        )
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = ColorStyles.white,
@@ -183,14 +226,15 @@ fun InspectionChargerEntryScreen(
                         )
                         Button(
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = { onConfirmedClick(chargerInfo.id) },
+                            enabled = !uiState.isStartingInspection,
+                            onClick = onStartClick,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = ColorStyles.keyColor01Dark02,
                                 contentColor = ColorStyles.white,
                             ),
                         ) {
                             Text(
-                                text = "점검 시작",
+                                text = if (uiState.isStartingInspection) "시작 중" else "점검 시작",
                                 style = TextStyles.body01.semiBold,
                             )
                         }
@@ -240,7 +284,10 @@ private fun InspectionChargerEntryScreenPreview() {
             onChargerIdChange = {},
             onCheckClick = {},
             onBackClick = {},
-            onConfirmedClick = {},
+            onStartClick = {},
+            onLoadDraftClick = {},
+            onStartNewClick = {},
+            onDismissDraftDialog = {},
         )
     }
 }

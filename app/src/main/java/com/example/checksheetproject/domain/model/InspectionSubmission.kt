@@ -24,6 +24,15 @@ data class InspectionSubmissionItem(
     val issueMemo: String? = null,
 )
 
+val InspectionSubmissionPayload.hasInspectionContent: Boolean
+    get() = groups.any { group ->
+        group.items.any { item ->
+            item.status != InspectionSubmissionStatus.NOT_SELECTED ||
+                item.measurementValue.orEmpty().isNotBlank() ||
+                item.issueMemo.orEmpty().isNotBlank()
+        }
+    }
+
 enum class InspectionSubmissionStatus {
     NORMAL,
     ISSUE,
