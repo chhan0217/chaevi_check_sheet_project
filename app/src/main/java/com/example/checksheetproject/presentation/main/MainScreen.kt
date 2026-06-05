@@ -1,11 +1,13 @@
 package com.example.checksheetproject.presentation.main
 
 import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,12 +25,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.checksheetproject.presentation.style.ColorStyles
@@ -44,15 +49,18 @@ fun MainRoute(
     modifier: Modifier = Modifier,
     viewModel: MainViewModel = hiltViewModel(),
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = {},
     )
-    val permissions = rememberMainPermissions()
+    val permissions = remember { mainPermissionsToRequest() }
 
-    LaunchedEffect(Unit) {
-        permissionLauncher.launch(permissions)
+    LaunchedEffect(permissions) {
+        if (!hasRequiredMainPermissions(context)) {
+            permissionLauncher.launch(permissions)
+        }
     }
 
     MainScreen(
@@ -69,18 +77,47 @@ fun MainRoute(
     )
 }
 
-private fun rememberMainPermissions(): Array<String> {
-    val imagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        Manifest.permission.READ_MEDIA_IMAGES
-    } else {
-        Manifest.permission.READ_EXTERNAL_STORAGE
+internal fun mainPermissionsToRequest(): Array<String> {
+    val mediaPermissions = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> listOf(
+            Manifest.permission.READ_MEDIA_IMAGES,
+            Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
+        )
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> listOf(
+            Manifest.permission.READ_MEDIA_IMAGES,
+        )
+        else -> listOf(
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+        )
     }
-    return arrayOf(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_COARSE_LOCATION,
-        Manifest.permission.CAMERA,
-        imagePermission,
-    )
+    return (
+        listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.CAMERA,
+        ) + mediaPermissions
+        ).toTypedArray()
+}
+
+private fun hasRequiredMainPermissions(context: Context): Boolean {
+    val locationGranted =
+        context.isPermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION) ||
+            context.isPermissionGranted(Manifest.permission.ACCESS_COARSE_LOCATION)
+    val cameraGranted = context.isPermissionGranted(Manifest.permission.CAMERA)
+    val mediaGranted = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
+            context.isPermissionGranted(Manifest.permission.READ_MEDIA_IMAGES) ||
+                context.isPermissionGranted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
+            context.isPermissionGranted(Manifest.permission.READ_MEDIA_IMAGES)
+        else ->
+            context.isPermissionGranted(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+    return locationGranted && cameraGranted && mediaGranted
+}
+
+private fun Context.isPermissionGranted(permission: String): Boolean {
+    return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -43,6 +43,13 @@ class InspectionChargerEntryViewModel @Inject constructor(
         }
     }
 
+    fun updateChargerIdFromQrScan(scanContents: String?) {
+        val chargerId = scanContents?.trim().orEmpty()
+        if (chargerId.isBlank()) return
+
+        updateChargerIdInput(chargerId)
+    }
+
     fun checkChargerInfo() {
         val chargerId = _uiState.value.chargerIdInput.trim()
         if (chargerId.isBlank()) {

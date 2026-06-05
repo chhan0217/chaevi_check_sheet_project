@@ -48,6 +48,27 @@ class InspectionChargerEntryViewModelTest {
     }
 
     @Test
+    fun `QR 스캔 결과가 있으면 충전기 ID 입력값으로 반영한다`() {
+        val viewModel = createViewModel()
+
+        viewModel.updateChargerIdFromQrScan(" CHB-001 ")
+
+        val uiState = viewModel.uiState.value
+        assertEquals("CHB-001", uiState.chargerIdInput)
+        assertTrue(uiState.canCheckCharger)
+    }
+
+    @Test
+    fun `QR 스캔 결과가 없으면 기존 충전기 ID 입력값을 유지한다`() {
+        val viewModel = createViewModel()
+
+        viewModel.updateChargerIdInput("CHB-001")
+        viewModel.updateChargerIdFromQrScan(null)
+
+        assertEquals("CHB-001", viewModel.uiState.value.chargerIdInput)
+    }
+
+    @Test
     fun `빈 충전기 ID로 확인하면 오류 메시지를 표시한다`() {
         val viewModel = createViewModel()
 

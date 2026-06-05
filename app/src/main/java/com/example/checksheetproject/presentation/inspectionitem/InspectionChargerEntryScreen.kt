@@ -1,5 +1,6 @@
 package com.example.checksheetproject.presentation.inspectionitem
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -33,6 +35,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.checksheetproject.presentation.style.ColorStyles
 import com.example.checksheetproject.presentation.style.TextStyles
 import com.example.checksheetproject.presentation.theme.CheckSheetTheme
+import com.example.checksheetproject.presentation.qr.PortraitQrScanActivity
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 
 @Composable
 fun InspectionChargerEntryRoute(
@@ -43,6 +48,20 @@ fun InspectionChargerEntryRoute(
     viewModel: InspectionChargerEntryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val qrScanLauncher = rememberLauncherForActivityResult(
+        contract = ScanContract(),
+        onResult = { result ->
+            viewModel.updateChargerIdFromQrScan(result.contents)
+        },
+    )
+    val qrScanOptions = remember {
+        ScanOptions()
+            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            .setPrompt("충전기 QR코드를 스캔하세요.")
+            .setBeepEnabled(false)
+            .setOrientationLocked(true)
+            .setCaptureActivity(PortraitQrScanActivity::class.java)
+    }
 
     LaunchedEffect(resetSignal) {
         if (resetSignal > 0) {
@@ -53,6 +72,9 @@ fun InspectionChargerEntryRoute(
     InspectionChargerEntryScreen(
         uiState = uiState,
         onChargerIdChange = viewModel::updateChargerIdInput,
+        onQrScanClick = {
+            qrScanLauncher.launch(qrScanOptions)
+        },
         onCheckClick = viewModel::checkChargerInfo,
         onBackClick = onBackClick,
         onStartClick = {
@@ -74,6 +96,7 @@ fun InspectionChargerEntryRoute(
 fun InspectionChargerEntryScreen(
     uiState: InspectionChargerEntryUiState,
     onChargerIdChange: (String) -> Unit,
+    onQrScanClick: () -> Unit,
     onCheckClick: () -> Unit,
     onBackClick: () -> Unit,
     onStartClick: () -> Unit,
@@ -162,6 +185,22 @@ fun InspectionChargerEntryScreen(
                             capitalization = KeyboardCapitalization.Characters,
                         ),
                     )
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !uiState.isChecking,
+                        onClick = onQrScanClick,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ColorStyles.grey01,
+                            contentColor = ColorStyles.white,
+                            disabledContainerColor = ColorStyles.grey05,
+                            disabledContentColor = ColorStyles.grey02,
+                        ),
+                    ) {
+                        Text(
+                            text = "QR 코드 스캔",
+                            style = TextStyles.body01.semiBold,
+                        )
+                    }
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = uiState.canCheckCharger,
@@ -282,6 +321,7 @@ private fun InspectionChargerEntryScreenPreview() {
                 ),
             ),
             onChargerIdChange = {},
+            onQrScanClick = {},
             onCheckClick = {},
             onBackClick = {},
             onStartClick = {},
