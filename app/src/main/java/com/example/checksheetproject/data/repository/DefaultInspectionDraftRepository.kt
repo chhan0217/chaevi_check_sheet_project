@@ -1,8 +1,8 @@
 package com.example.checksheetproject.data.repository
 
 import com.example.checksheetproject.data.local.InspectionDraftLocalDataSource
+import com.example.checksheetproject.data.mapper.toDraftEntity
 import com.example.checksheetproject.data.mapper.toDomain
-import com.example.checksheetproject.data.mapper.toRequest
 import com.example.checksheetproject.domain.model.InspectionSubmissionPayload
 import com.example.checksheetproject.domain.repository.InspectionDraftRepository
 import javax.inject.Inject
@@ -21,7 +21,7 @@ class DefaultInspectionDraftRepository @Inject constructor(
     }
 
     override suspend fun saveDraft(payload: InspectionSubmissionPayload) {
-        inspectionDraftLocalDataSource.saveDraft(payload.toRequest())
+        inspectionDraftLocalDataSource.saveDraft(payload.toDraftEntity())
     }
 
     override suspend fun deleteDraft(

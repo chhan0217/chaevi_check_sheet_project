@@ -1,6 +1,5 @@
 package com.example.checksheetproject.data.local
 
-import com.example.checksheetproject.data.remote.dto.InspectionSubmissionRequest
 import java.io.File
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
@@ -30,7 +29,7 @@ class FileInspectionDraftLocalDataSourceTest {
 
         expiredDraft.writeText(
             json.encodeToString(
-                draftRequest(
+                draftEntity(
                     chargerId = "CHB-001",
                     createdAtMillis = nowMillis - DAY_MILLIS,
                 ),
@@ -38,7 +37,7 @@ class FileInspectionDraftLocalDataSourceTest {
         )
         activeDraft.writeText(
             json.encodeToString(
-                draftRequest(
+                draftEntity(
                     chargerId = "CHB-002",
                     createdAtMillis = nowMillis - DAY_MILLIS + 1L,
                 ),
@@ -72,11 +71,11 @@ class FileInspectionDraftLocalDataSourceTest {
         )
     }
 
-    private fun draftRequest(
+    private fun draftEntity(
         chargerId: String,
         createdAtMillis: Long,
-    ): InspectionSubmissionRequest {
-        return InspectionSubmissionRequest(
+    ): InspectionDraftEntity {
+        return InspectionDraftEntity(
             chargerId = chargerId,
             inspectionMonth = "2026-06",
             inspectorId = "",

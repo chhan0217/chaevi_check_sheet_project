@@ -1,15 +1,13 @@
 package com.example.checksheetproject.data.local
 
-import android.content.Context
-import com.example.checksheetproject.data.remote.dto.InspectionSubmissionRequest
 import java.io.File
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class FileInspectionDraftLocalDataSource @Inject constructor(
@@ -19,7 +17,7 @@ class FileInspectionDraftLocalDataSource @Inject constructor(
     override suspend fun getDraft(
         chargerId: String,
         inspectionMonth: String,
-    ): InspectionSubmissionRequest? {
+    ): InspectionDraftEntity? {
         return withContext(Dispatchers.IO) {
             val draftFile = draftFile(
                 chargerId = chargerId,
@@ -28,19 +26,19 @@ class FileInspectionDraftLocalDataSource @Inject constructor(
             if (!draftFile.exists()) {
                 null
             } else {
-                json.decodeFromString<InspectionSubmissionRequest>(draftFile.readText())
+                json.decodeFromString<InspectionDraftEntity>(draftFile.readText())
             }
         }
     }
 
-    override suspend fun saveDraft(request: InspectionSubmissionRequest) {
+    override suspend fun saveDraft(entity: InspectionDraftEntity) {
         withContext(Dispatchers.IO) {
             val draftFile = draftFile(
-                chargerId = request.chargerId,
-                inspectionMonth = request.inspectionMonth,
+                chargerId = entity.chargerId,
+                inspectionMonth = entity.inspectionMonth,
             )
             draftFile.parentFile?.mkdirs()
-            draftFile.writeText(json.encodeToString(request))
+            draftFile.writeText(json.encodeToString(entity))
         }
     }
 
@@ -67,7 +65,7 @@ class FileInspectionDraftLocalDataSource @Inject constructor(
             draftDirectory.listFiles { file -> file.extension == "json" }
                 ?.forEach { draftFile ->
                     runCatching {
-                        val draft = json.decodeFromString<InspectionSubmissionRequest>(
+                        val draft = json.decodeFromString<InspectionDraftEntity>(
                             draftFile.readText(),
                         )
                         if (nowMillis - draft.createdAtMillis >= DRAFT_EXPIRATION_MILLIS) {

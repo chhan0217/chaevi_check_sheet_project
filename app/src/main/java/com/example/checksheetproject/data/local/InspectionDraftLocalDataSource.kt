@@ -1,14 +1,12 @@
 package com.example.checksheetproject.data.local
 
-import com.example.checksheetproject.data.remote.dto.InspectionSubmissionRequest
-
 interface InspectionDraftLocalDataSource {
     suspend fun getDraft(
         chargerId: String,
         inspectionMonth: String,
-    ): InspectionSubmissionRequest?
+    ): InspectionDraftEntity?
 
-    suspend fun saveDraft(request: InspectionSubmissionRequest)
+    suspend fun saveDraft(entity: InspectionDraftEntity)
 
     suspend fun deleteDraft(
         chargerId: String,
