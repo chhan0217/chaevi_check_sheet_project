@@ -187,13 +187,13 @@ class InspectionItemListViewModelTest {
 
         val payload = viewModel.createSubmissionPayload(
             chargerId = "CHARGER-001",
-            inspectionMonth = "2026-05",
+            inspectionMonth = "2026-05-01",
             inspectorId = "INSPECTOR-001",
             createdAtMillis = 1000L,
         )
 
         assertEquals("CHARGER-001", payload.chargerId)
-        assertEquals("2026-05", payload.inspectionMonth)
+        assertEquals("2026-05-01", payload.inspectionMonth)
         assertEquals("INSPECTOR-001", payload.inspectorId)
         assertEquals(1000L, payload.createdAtMillis)
         assertEquals(19, payload.createdAtDateTime.length)
@@ -263,7 +263,7 @@ class InspectionItemListViewModelTest {
         viewModel.updateIssueMemo(firstItem, "외부 스크래치 확인")
         viewModel.saveDraftBeforeLeaving(
             chargerId = "CHB-001",
-            inspectionMonth = "2026-05",
+            inspectionMonth = "2026-05-01",
             onSaved = { didLeave = true },
         )
         testDispatcher.scheduler.advanceUntilIdle()
@@ -271,7 +271,7 @@ class InspectionItemListViewModelTest {
         val savedPayload = draftRepository.savedPayload
         assertEquals(true, didLeave)
         assertEquals("CHB-001", savedPayload?.chargerId)
-        assertEquals("2026-05", savedPayload?.inspectionMonth)
+        assertEquals("2026-05-01", savedPayload?.inspectionMonth)
         assertEquals(
             InspectionSubmissionStatus.ISSUE,
             savedPayload?.groups?.first()?.items?.first()?.status,
@@ -289,7 +289,7 @@ class InspectionItemListViewModelTest {
         val draftRepository = FakeInspectionDraftRepository(
             draftPayload = InspectionSubmissionPayload(
                 chargerId = "CHB-001",
-                inspectionMonth = "2026-05",
+                inspectionMonth = "2026-05-01",
                 inspectorId = "",
                 createdAtMillis = 1000L,
                 createdAtDateTime = "2026-05-01 10:00:00",
@@ -327,7 +327,7 @@ class InspectionItemListViewModelTest {
 
         viewModel.loadDraft(
             chargerId = "CHB-001",
-            inspectionMonth = "2026-05",
+            inspectionMonth = "2026-05-01",
         )
         testDispatcher.scheduler.advanceUntilIdle()
 

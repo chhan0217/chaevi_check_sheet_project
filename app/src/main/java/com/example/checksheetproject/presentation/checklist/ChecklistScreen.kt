@@ -183,7 +183,7 @@ private fun ChecklistScreenPreview() {
         ChecklistScreen(
             uiState = ChecklistUiState(
                 chargerId = "CHB-001",
-                inspectionMonth = "2026-05",
+                inspectionMonth = "2026-05-01",
                 items = listOf(
                     ChecklistItemUi(
                         id = "appearance",

@@ -11,6 +11,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.example.checksheetproject.presentation.charger.ChargerListRoute
 import com.example.checksheetproject.presentation.checklist.ChecklistRoute
 import com.example.checksheetproject.presentation.cleaning.CleaningGuideRoute
+import com.example.checksheetproject.presentation.common.currentInspectionDate
 import com.example.checksheetproject.presentation.inspectionitem.InspectionChargerEntryRoute
 import com.example.checksheetproject.presentation.inspectionitem.InspectionItemListRoute
 import com.example.checksheetproject.presentation.main.MainRoute
@@ -53,7 +54,7 @@ fun CheckSheetNavGraph() {
                             backStack.add(
                                 AppRoute.Checklist(
                                     chargerId = chargerId,
-                                    inspectionMonth = "2026-05",
+                                    inspectionMonth = currentInspectionDate(),
                                 ),
                             )
                         },

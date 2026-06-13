@@ -1,6 +1,7 @@
 package com.example.checksheetproject.presentation.charger
 
 import androidx.lifecycle.ViewModel
+import com.example.checksheetproject.presentation.common.currentInspectionDate
 import com.example.checksheetproject.presentation.common.InspectionStatusUi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -12,7 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class ChargerListViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(
         ChargerListUiState(
-            inspectionMonthLabel = "2026년 5월 정기점검",
+            inspectionMonthLabel = "${currentInspectionDate()} 정기점검",
             chargers = listOf(
                 ChargerItemUi(
                     id = "CHB-001",

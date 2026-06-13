@@ -77,7 +77,7 @@ class FileInspectionDraftLocalDataSourceTest {
     ): InspectionDraftEntity {
         return InspectionDraftEntity(
             chargerId = chargerId,
-            inspectionMonth = "2026-06",
+            inspectionMonth = "2026-06-01",
             inspectorId = "",
             createdAtMillis = createdAtMillis,
             createdAtDateTime = "2026-06-01 10:00:00",

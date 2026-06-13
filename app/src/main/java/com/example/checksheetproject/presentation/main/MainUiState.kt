@@ -1,8 +1,10 @@
 package com.example.checksheetproject.presentation.main
 
+import com.example.checksheetproject.presentation.common.currentInspectionDate
+
 data class MainUiState(
     val title: String = "정기점검 관리",
-    val inspectionMonthLabel: String = "2026년 5월",
+    val inspectionMonthLabel: String = currentInspectionDate(),
     val menuItems: List<MainMenuItemUi> = emptyList(),
 )
 

@@ -69,7 +69,7 @@ class SaveInspectionDraftUseCaseTest {
     ): InspectionSubmissionPayload {
         return InspectionSubmissionPayload(
             chargerId = "CHB-001",
-            inspectionMonth = "2026-06",
+            inspectionMonth = "2026-06-01",
             inspectorId = "",
             createdAtMillis = 1000L,
             createdAtDateTime = "2026-06-01 10:00:00",

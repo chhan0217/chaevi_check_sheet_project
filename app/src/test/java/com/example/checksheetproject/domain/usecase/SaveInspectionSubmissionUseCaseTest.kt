@@ -13,7 +13,7 @@ class SaveInspectionSubmissionUseCaseTest {
         val useCase = SaveInspectionSubmissionUseCase(repository)
         val payload = InspectionSubmissionPayload(
             chargerId = "CHARGER-001",
-            inspectionMonth = "2026-06",
+            inspectionMonth = "2026-06-01",
             inspectorId = "INSPECTOR-001",
             createdAtMillis = 1000L,
             createdAtDateTime = "2026-06-02 10:00:00",

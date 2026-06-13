@@ -10,12 +10,12 @@ class ChecklistViewModelTest {
 
         viewModel.loadChecklist(
             chargerId = "CHB-001",
-            inspectionMonth = "2026-05",
+            inspectionMonth = "2026-05-01",
         )
 
         val uiState = viewModel.uiState.value
         assertEquals("CHB-001", uiState.chargerId)
-        assertEquals("2026-05", uiState.inspectionMonth)
+        assertEquals("2026-05-01", uiState.inspectionMonth)
     }
 
     @Test

@@ -164,7 +164,7 @@ private fun ChargerListScreenPreview() {
     CheckSheetTheme {
         ChargerListScreen(
             uiState = ChargerListUiState(
-                inspectionMonthLabel = "2026년 5월 정기점검",
+                inspectionMonthLabel = "2026-05-01 정기점검",
                 chargers = listOf(
                     ChargerItemUi(
                         id = "CHB-001",

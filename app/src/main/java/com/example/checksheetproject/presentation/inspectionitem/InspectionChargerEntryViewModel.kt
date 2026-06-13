@@ -7,10 +7,8 @@ import com.example.checksheetproject.domain.model.InspectionSubmissionPayload
 import com.example.checksheetproject.domain.usecase.GetChargerUseCase
 import com.example.checksheetproject.domain.usecase.GetInspectionDraftUseCase
 import com.example.checksheetproject.domain.usecase.DeleteInspectionDraftUseCase
+import com.example.checksheetproject.presentation.common.currentInspectionDate
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -188,7 +186,6 @@ class InspectionChargerEntryViewModel @Inject constructor(
     }
 
     private fun currentInspectionMonth(): String {
-        val formatter = SimpleDateFormat("yyyy-MM", Locale.KOREA)
-        return formatter.format(Date())
+        return currentInspectionDate()
     }
 }

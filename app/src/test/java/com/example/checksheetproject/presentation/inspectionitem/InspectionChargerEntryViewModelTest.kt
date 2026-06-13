@@ -274,7 +274,7 @@ class InspectionChargerEntryViewModelTest {
     private fun draftPayload(chargerId: String): InspectionSubmissionPayload {
         return InspectionSubmissionPayload(
             chargerId = chargerId,
-            inspectionMonth = "2026-06",
+            inspectionMonth = "2026-06-01",
             inspectorId = "",
             createdAtMillis = 1000L,
             createdAtDateTime = "2026-06-01 10:00:00",

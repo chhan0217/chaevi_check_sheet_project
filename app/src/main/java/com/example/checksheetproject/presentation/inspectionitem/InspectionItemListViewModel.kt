@@ -10,10 +10,9 @@ import com.example.checksheetproject.domain.usecase.DeleteInspectionDraftUseCase
 import com.example.checksheetproject.domain.usecase.GetInspectionDraftUseCase
 import com.example.checksheetproject.domain.usecase.SaveInspectionDraftUseCase
 import com.example.checksheetproject.domain.usecase.SaveInspectionSubmissionUseCase
+import com.example.checksheetproject.presentation.common.currentInspectionDate
+import com.example.checksheetproject.presentation.common.toServerDateTime
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -130,7 +129,7 @@ class InspectionItemListViewModel @Inject constructor(
             inspectionMonth = inspectionMonth,
             inspectorId = inspectorId,
             createdAtMillis = createdAtMillis,
-            createdAtDateTime = createdAtMillis.toCreatedAtDateTime(),
+            createdAtDateTime = createdAtMillis.toServerDateTime(),
             groups = currentState.groups.map { group ->
                 InspectionSubmissionGroup(
                     category = group.category,
@@ -287,14 +286,8 @@ class InspectionItemListViewModel @Inject constructor(
             missingDelimiterValue = this,
         )
 
-        fun Long.toCreatedAtDateTime(): String {
-            val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA)
-            return formatter.format(Date(this))
-        }
-
         fun currentInspectionMonth(): String {
-            val formatter = SimpleDateFormat("yyyy-MM", Locale.KOREA)
-            return formatter.format(Date())
+            return currentInspectionDate()
         }
 
         val inspectionGroups = listOf(
