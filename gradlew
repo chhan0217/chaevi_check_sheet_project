@@ -80,6 +80,10 @@ case "`uname`" in
     ;;
 esac
 
+if [ -z "$JAVA_HOME" ] && [ "$darwin" = "true" ] && [ -x "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java" ] ; then
+    JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+fi
+
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
 

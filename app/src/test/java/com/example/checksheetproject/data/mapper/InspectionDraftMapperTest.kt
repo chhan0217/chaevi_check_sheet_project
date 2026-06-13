@@ -15,7 +15,7 @@ class InspectionDraftMapperTest {
         val draftItem = draftEntity.groups.first().items.first()
 
         assertEquals("CHB-001", draftEntity.chargerId)
-        assertEquals("2026-06", draftEntity.inspectionMonth)
+        assertEquals("2026-06-01", draftEntity.inspectionMonth)
         assertEquals("INSPECTOR-001", draftEntity.inspectorId)
         assertEquals(InspectionDraftStatusEntity.ISSUE, draftItem.status)
         assertEquals("커넥터 파손", draftItem.issueMemo)
@@ -27,7 +27,7 @@ class InspectionDraftMapperTest {
         val payloadItem = payload.groups.first().items.first()
 
         assertEquals("CHB-001", payload.chargerId)
-        assertEquals("2026-06", payload.inspectionMonth)
+        assertEquals("2026-06-01", payload.inspectionMonth)
         assertEquals("INSPECTOR-001", payload.inspectorId)
         assertEquals(InspectionSubmissionStatus.ISSUE, payloadItem.status)
         assertEquals("커넥터 파손", payloadItem.issueMemo)

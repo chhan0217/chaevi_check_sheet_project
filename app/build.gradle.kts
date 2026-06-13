@@ -1,3 +1,7 @@
+import com.android.build.gradle.internal.api.BaseVariantOutputImpl
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -39,6 +43,14 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+
+    applicationVariants.all {
+        outputs.all {
+            val output = this as BaseVariantOutputImpl
+            val buildDate = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
+            output.outputFileName = "채비클린-$versionName-${buildType.name}-$buildDate.apk"
+        }
     }
 }
 
